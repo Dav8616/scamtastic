@@ -1,6 +1,9 @@
 const chatbotMessages = document.getElementById('chatbot-messages');
 const chatbotForm = document.getElementById('chatbot-form');
 const chatbotInput = document.getElementById('chatbot-input');
+let lastResponseText = "";
+let repeatCount = 0;
+
 
 function addMessage(text, sender, options = {}) {
     const msgEl = document.createElement('div');
@@ -30,7 +33,7 @@ function addMessage(text, sender, options = {}) {
                 msgEl.textContent += (idx === 0 ? '' : ' ') + words[idx];
                 idx++;
                 chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-                setTimeout(typeNextWord, 200);
+                setTimeout(typeNextWord, 30);
             } else {
                 if (options.glitch) {
                     setTimeout(() => {
@@ -73,7 +76,7 @@ function getRudeBotResponse(msg) {
     const m = msg.toLowerCase();
 
     if (!m.trim()) return "Say something or get lost.";
-    if (m.includes("hello") || m.includes("hi")) return "Wow, social skills. Impressive.";
+    if (m.includes("greetings") || m.includes("hi")) return "Wow, social skills. Impressive.";
     if (m.includes("bye")) return "Finally. Some peace and quiet.";
     if (m.includes("scam")) return "You're on Scamtastic. Congrats, Sherlock.";
     if (m.includes("help")) return { text: "I’d love to help, but I won’t.", flash: true };
@@ -126,34 +129,50 @@ chatbotForm.addEventListener('submit', e => {
     // Show typing bubble
     const typingEl = addMessage('', 'bot', { isTyping: true });
 
-    // Simulate typing delay before showing real message
     setTimeout(() => {
-        // Remove typing bubble
         if (typingEl && typingEl.parentNode) {
             typingEl.parentNode.removeChild(typingEl);
         }
 
-        // Get bot response
-        const response = getRudeBotResponse(userMsg);
+        let response = getRudeBotResponse(userMsg);
+        if (response === null) return;
+
+        let text, glitch = false, flash = false;
 
         if (typeof response === 'string') {
-            // Word-by-word typing
-            addMessage(response, 'bot', { wordByWord: true });
+            text = response;
         } else {
-            addMessage(response.text, 'bot', {
-                wordByWord: true,
-                glitch: response.glitch,
-                flash: response.flash,
-
-            });
-
-            if (response && response.redirect) {
-                window.location.href = response.redirect;
-                return;
-            }
-
-
+            text = response.text;
+            glitch = response.glitch;
+            flash = response.flash;
         }
+
+        // Repeat tracking
+        if (text === lastResponseText) {
+            repeatCount++;
+        } else {
+            repeatCount = 0;
+            lastResponseText = text;
+        }
+
+        // Escalation
+        if (repeatCount === 1) {
+            text += " (You already asked that...)";
+        } else if (repeatCount === 2) {
+            text = "You're seriously asking me *again*? Wow.";
+        } else if (repeatCount >= 3) {
+            text = "I’m done. Figure it out yourself.";
+            glitch = true;
+        }
+
+        // Send message
+        addMessage(text, 'bot', {
+            wordByWord: true,
+            glitch,
+            flash
+        });
+
     }, 800);
+
 });
 
